@@ -1,52 +1,53 @@
-from datetime import datetime
+from _datetime import datetime
 import re
 
 import unicodedata
 
 
 def normalize_input(data):
-    return unicodedata.normalize('NFKD', data)
+    if isinstance(data, str):
+        # Normalizar el texto a la forma canónica
+        data = unicodedata.normalize('NFKD', data)
+        # Convertir a minúsculas y eliminar espacios en blanco
+        data = data.strip().lower()
+    return data
 
 
 # valido el email
 def validate_email(email):
     email = normalize_input(email)
-    patron = r'^[a-z]+\.[a-z]+@urosario\.edu\.co$'
-    return bool(re.fullmatch(patron, email))
+    pattern = r'^[a-zA-Z0-9._%+-]+@urosario\.edu\.co$'
+    return re.match(pattern, email) is not None
+
 
 # valido la edad
 def validate_dob(dob):
-    try:
-        fecha_nac = datetime.strptime(dob, "%Y-%m-%d")
-        today = datetime.today()
-        anio_limite = today.year - 16
-        if fecha_nac.year < anio_limite:
-            return True
-        elif fecha_nac.year == anio_limite:
-            if fecha_nac.month < today.month or (fecha_nac.month == today.month and fecha_nac.day <= today.day):
-                return True
-        return False
-    except ValueError:
-        return False
+    birth_date = datetime.strptime(dob, "%Y-%m-%d")
+    today = datetime.today()
+    age = today.year - birth_date.year
+
+    if (today.month, today.day) < (birth_date.month, birth_date.day):
+        age -= 1
+
+    return age >= 18
 
 
 # valido el usuario
 def validate_user(user):
-    patron = r'^[a-z]+(\.[a-z]+)$'
+    patron = r'^[a-zA-Z]+\.[a-zA-Z]+$'
     return bool(re.fullmatch(patron, user))
 
 
 # valido el dni
 def validate_dni(dni):
-    return dni.isdigit() and len(dni) == 10 and dni.startswith("1000000000")
+    patron = r'^\d{10}$'
+    return bool(re.fullmatch(patron, dni))
 
 
 # valido la contraseña
 def validate_pswd(pswd):
-    patron = r'^(?=.*[a-z])(?=.*[A-Z])(?=.*\d)(?=.*[#*@\$%&\-!+=?])[A-Za-z\d#*@\$%&\-!+=?]{8,35}$'
-    return bool(re.fullmatch(patron, pswd))
-
+    pattern = r'^(?=.*[a-z])(?=.*[A-Z])(?=.*\d)(?=.*[#*@\$%&\-!+=?])[A-Za-z\d#*@\$%&\-!+=?]{8,35}$'
+    return bool(re.fullmatch(pattern, pswd))
 
 def validate_name(name):
-    patron = r'^[a-z]$'
-    return bool(re.fullmatch(patron, name))
+    return bool(re.fullmatch(r'^[a-zA-Z]+$', name))
