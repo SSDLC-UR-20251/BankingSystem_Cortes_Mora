@@ -5,6 +5,8 @@ from app.reading import *
 from flask import request, jsonify, redirect, url_for, render_template, session, make_response
 from app import app
 
+app.secret_key = 'your_secret_key'
+
 
 @app.route('/api/users', methods=['POST'])
 def create_record():
@@ -47,11 +49,11 @@ def create_record():
         'password': normalize_input(password),
         "dni": dni,
         'dob': normalize_input(dob),
+        "role":"admin"
     }
 
     write_db("db.txt", db)
     return redirect("/login")
-
 
 
 # Endpoint para el login
@@ -68,6 +70,7 @@ def api_login():
     password_db = db.get(email)["password"]
 
     if password_db == password :
+        session['role'] = db[email]['role']
         return redirect(url_for('customer_menu'))
     else:
         return render_template('login.html', error=error)
@@ -96,4 +99,49 @@ def customer_menu():
 @app.route('/records', methods=['GET'])
 def read_record():
     db = read_db("db.txt")
-    return render_template('records.html', users=db)
+    message = request.args.get('message', '')
+    return render_template('records.html', users=db,role=session.get('role'),message=message)
+
+
+@app.route('/update_user/<email>', methods=['POST'])
+def update_user(email):
+    # Leer la base de datos de usuarios
+    db = read_db("db.txt")
+
+    username = request.form['username']
+    dni = request.form['dni']
+    dob = request.form['dob']
+    nombre = request.form['nombre']
+    apellido = request.form['apellido']
+    errores = []
+
+    if not validate_dob(dob):
+        errores.append("Fecha de nacimiento inválida")
+    if not validate_dni(dni):
+        errores.append("DNI inválido")
+    if not validate_user(username):
+        errores.append("Usuario inválido")
+    if not validate_name(nombre):
+        errores.append("Nombre inválido")
+    if not validate_name(apellido):
+        errores.append("Apellido inválido")
+
+    if errores:
+        return render_template('edit_user.html',
+                               user_data=db[email],
+                               email=email,
+                               error=errores)
+
+
+    db[email]['username'] = normalize_input(username)
+    db[email]['nombre'] = normalize_input(nombre)
+    db[email]['apellido'] = normalize_input(apellido)
+    db[email]['dni'] = dni
+    db[email]['dob'] = normalize_input(dob)
+
+
+    write_db("db.txt", db)
+    
+
+    # Redirigir al usuario a la página de records con un mensaje de éxito
+    return redirect(url_for('read_record', message="Información actualizada correctamente"))
