@@ -51,3 +51,6 @@ def validate_pswd(pswd):
 
 def validate_name(name):
     return bool(re.fullmatch(r'^[a-zA-Z]+$', name))
+
+def validate_role(role):
+    return role in ['admin', 'user', 'Admin', 'User']
