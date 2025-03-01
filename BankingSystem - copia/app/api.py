@@ -1,9 +1,10 @@
-from _datetime import datetime
+from datetime import datetime
 import time
 from app.validation import *
 from app.reading import *
 from flask import request, jsonify, redirect, url_for, render_template, session, make_response
 from app import app
+from app.encryption import *
 
 app.secret_key = 'your_secret_key'
 
@@ -42,11 +43,13 @@ def create_record():
     email = normalize_input(email)
 
     db = read_db("db.txt")
+    pas, salt = hash_with_salt(normalize_input(password)),
     db[email] = {
         'nombre': normalize_input(nombre),
         'apellido': normalize_input(apellido),
         'username': normalize_input(username),
-        'password': normalize_input(password),
+        'password': pas,
+        'salt': salt,
         "dni": dni,
         'dob': normalize_input(dob),
         "role":"admin"
@@ -68,8 +71,9 @@ def api_login():
         return render_template('login.html', error=error)
 
     password_db = db.get(email)["password"]
+    sal = db.get(email)["salt"]
 
-    if password_db == password :
+    if hash_compare(password, password_db, sal):
         session['role'] = db[email]['role']
         return redirect(url_for('customer_menu'))
     else:
