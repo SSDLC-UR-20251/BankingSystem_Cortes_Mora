@@ -5,12 +5,22 @@ from app.reading import *
 from flask import request, jsonify, redirect, url_for, render_template, session, make_response
 from app import app
 from app.encryption import *
+from datetime import timedelta
+
+
+app.secret_key = 'your_secret_key'
+app.config['PERMANENT_SESSION_LIFETIME'] = timedelta(minutes=5)
+
+@app.before_request
+def before_request():
+    session.permanent = True
+    if 'email' not in session and request.endpoint not in ['login', 'api_login', 'create_record']:
+        return redirect(url_for('login'))
 
 login_attempts = {}
 MAX_ATTEMPTS = 3
 BLOCK_TIME = 300  # 5 minutos en segundos
-app.secret_key = 'your_secret_key'
-
+app.secret_key = get_random_bytes(16)
 
 @app.route('/api/users', methods=['POST'])
 def create_record():
@@ -23,7 +33,6 @@ def create_record():
     dni = data.get('dni')
     dob = data.get('dob')
     errores = []
-    # Validaciones
     if not validate_email(email):
         errores.append("Email inválido")
     if not validate_pswd(password):
@@ -43,8 +52,9 @@ def create_record():
         return render_template('form.html', error=errores)
 
     email = normalize_input(email)
-
     hashed_pwd, salt = hash_with_salt(normalize_input(password))
+    dni_cifrado, dni_nonce = encrypt_aes(normalize_input(dni), app.secret_key)
+
     db = read_db("db.txt")
     db[email] = {
         'nombre': normalize_input(nombre),
@@ -52,7 +62,8 @@ def create_record():
         'username': normalize_input(username),
         'password': hashed_pwd,
         "password_salt": salt,
-        "dni": dni,
+        "dni": dni_cifrado,
+        "dni_nonce": dni_nonce,
         'dob': normalize_input(dob),
         "role": "user"
     }
@@ -124,35 +135,49 @@ def customer_menu():
     last_transactions = transactions.get(email, [])[-5:]
     message = request.args.get('message', '')
     error = request.args.get('error', 'false').lower() == 'true'
+    darkmode = request.cookies.get('darkmode', 'light')
     return render_template('customer_menu.html',
                            message=message,
                            nombre=db.get(email)['nombre'],
                            balance=current_balance,
                            last_transactions=last_transactions,
-                           error=error)
+                           error=error,
+                           darkmode=darkmode)
 
 
 # Endpoint para leer un registro
 @app.route('/records', methods=['GET'])
 def read_record():
-
     db = read_db("db.txt")
     user_email = session.get('email')
     user = db.get(user_email, None)
     message = request.args.get('message', '')
-    # Si el usuario es admin, mostrar todos los registros con DNI ofuscado
+    darkmode = request.cookies.get('darkmode', 'light')
+
     if session.get('role') == 'admin':
+        for email, user_data in db.items():
+            dni_decifrado = decrypt_aes(user_data.get('dni'), user_data.get('dni_nonce'), app.secret_key)
+            print(f"DNI descifrado: {dni_decifrado}")
+            user_data['dni'] = ofuscar_dni(dni_decifrado)
         return render_template('records.html',
                                users=db,
                                role=session.get('role'),
                                message=message,
-                               )
+                               darkmode=darkmode)
     else:
-
+        if user is None:
+            return render_template('records.html',
+                                   users={},
+                                   error="Usuario no encontrado",
+                                   message=message,
+                                   darkmode=darkmode)
+        dni_decifrado = decrypt_aes(user.get('dni'), user.get('dni_nonce'), app.secret_key)
+        user['dni'] = ofuscar_dni(dni_decifrado)
         return render_template('records.html',
                                users={user_email: user},
                                error=None,
-                               message=message)
+                               message=message,
+                               darkmode=darkmode)
 
 
 @app.route('/update_user/<email>', methods=['POST'])
@@ -165,6 +190,7 @@ def update_user(email):
     dob = request.form['dob']
     nombre = request.form['nombre']
     apellido = request.form['apellido']
+    darkmode = 'dark' if 'darkmode' in request.form else 'light'
     errores = []
 
     if not validate_dob(dob):
@@ -183,17 +209,18 @@ def update_user(email):
                                user_data=db[email],
                                email=email,
                                error=errores)
-
+    dni_cifrado, dni_nonce = encrypt_aes(normalize_input(dni), app.secret_key)
 
     db[email]['username'] = normalize_input(username)
     db[email]['nombre'] = normalize_input(nombre)
     db[email]['apellido'] = normalize_input(apellido)
-    db[email]['dni'] = dni
+    db[email]['dni'] = dni_cifrado
+    db[email]['dni_nonce'] = dni_nonce
     db[email]['dob'] = normalize_input(dob)
-
 
     write_db("db.txt", db)
     resp = make_response(redirect(url_for('read_record', message="Información actualizada correctamente")))
+    resp.set_cookie('darkmode', darkmode, secure=True, httponly=True, samesite='Lax')
 
     # Redirigir al usuario a la página de records con un mensaje de éxito
     return resp
@@ -251,14 +278,25 @@ def api_deposit():
 def api_withdraw():
     email = session.get('email')
     amount = float(request.form['balance'])
+    password =normalize_input(request.form['password'])
 
     if amount <= 0:
         return redirect(url_for('customer_menu',
                                 message="La cantidad a retirar debe ser positiva",
                                 error=True))
-
+    
+    db = read_db("db.txt")
     transactions = read_db("transaction.txt")
     current_balance = sum(float(t['balance']) for t in transactions.get(email, []))
+
+    #Contraseña
+    password_db = db[email]["password"]
+    salt_db = db[email]["password_salt"]
+
+    if not compare_salt(password, password_db, salt_db):
+        return redirect(url_for('customer_menu',
+                                message="Contraseña incorrecta",
+                                error=True))
 
     if amount > current_balance:
         return redirect(url_for('customer_menu',
@@ -277,4 +315,10 @@ def api_withdraw():
     return redirect(url_for('customer_menu',
                             message="Retiro exitoso",
                             error=False))
+
+@app.route('/logout')
+def logout():
+    session.clear()
+    return redirect(url_for('login'))
+
 

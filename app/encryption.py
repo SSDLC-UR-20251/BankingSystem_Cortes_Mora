@@ -80,17 +80,3 @@ def encrypt_aes(texto, clave):
 # Función para ofuscar el DNI
 def ofuscar_dni(dni):
     return '*' * (len(dni) - 4) + dni[-4:]
-
-if __name__ == '__main__':
-    texto = "Hola Mundo"
-    clave = get_random_bytes(16)
-    texto_cifrado, nonce = encrypt_aes(texto, clave)
-    print("Texto cifrado: " + texto_cifrado)
-    print("Nonce: " + nonce)
-    des = decrypt_aes(texto_cifrado, nonce, clave)
-    print("Texto descifrado: " + des)
-    password = "password"
-    pwd_hash = hash_with_salt(password)
-    print("Hash: " + pwd_hash[0])
-    password_other = "password"
-    print("Hash: " + hash_with_salt(password_other)[0])
