@@ -2,6 +2,7 @@ from _datetime import datetime
 import re
 
 import unicodedata
+import unittest
 
 
 def normalize_input(data):
@@ -51,3 +52,48 @@ def validate_pswd(pswd):
 
 def validate_name(name):
     return bool(re.fullmatch(r'^[a-zA-Z]+$', name))
+
+class TestValidationFunctions(unittest.TestCase):
+    
+    def test_validate_email(self):
+        self.assertTrue(validate_email("usuario@urosario.edu.co"))
+        self.assertFalse(validate_email("usuario@gmail.com"))
+        self.assertFalse(validate_email("usuario@urosario.com"))
+        self.assertFalse(validate_email("usuario@urosario.edu"))
+        self.assertFalse(validate_email("@urosario.edu.co"))
+    
+    def test_validate_dob(self):
+        self.assertTrue(validate_dob("2000-01-01"))  # Mayor de 16
+        self.assertFalse(validate_dob("2010-01-01")) # Menor de 16
+    
+    def test_validate_user(self):
+        self.assertTrue(validate_user("sara.palacios"))
+        self.assertFalse(validate_user("sara_palacios"))
+        self.assertFalse(validate_user("sarapalacios"))
+        self.assertFalse(validate_user("sara.palacios1"))
+        self.assertFalse(validate_user("sara.palacios!"))  # No debe contener caracteres especiales
+    
+    def test_validate_dni(self):
+        self.assertTrue(validate_dni("1000000001"))
+        self.assertFalse(validate_dni("9999999999"))
+        self.assertFalse(validate_dni("10000000001"))
+        self.assertFalse(validate_dni("abcdefg123"))
+    
+    def test_validate_name(self):
+        self.assertTrue(validate_name("Sara"))
+        self.assertTrue(validate_name("Palacios"))
+        self.assertFalse(validate_name("Sara123"))
+        self.assertFalse(validate_name("Sara_Palacios"))
+        self.assertFalse(validate_name("Sara!"))
+        self.assertFalse(validate_name("Sara Palacios"))  # No debe contener espacios
+    
+    def test_validate_password(self):
+        self.assertTrue(validate_pswd("Passw0rd!"))  # Cumple con los requisitos
+        self.assertFalse(validate_pswd("password"))  # Falta mayúscula, número y especial
+        self.assertFalse(validate_pswd("PASSWORD1"))  # Falta minúscula y especial
+        self.assertFalse(validate_pswd("Passw0rd"))  # Falta carácter especial
+        self.assertFalse(validate_pswd("Pw1!"))  # Demasiado corta
+        self.assertFalse(validate_pswd("A" * 36 + "1!"))  # Demasiado larga
+
+if __name__ == "__main__":
+    unittest.main()
