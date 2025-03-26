@@ -30,7 +30,7 @@
     <div class="container mt-5">
         <!-- Page Title -->
         <h1 class="text-center mb-4">Welcome, {{ nombre }}</h1>
-         <h4 class="card-title text-center">Your current balance: {{ balance }}</h4>
+         <h4 class="card-title text-center" id="saldo_usuario">Your current balance: {{ balance }}</h4>
 
 
         <!-- Alerta para mensajes -->
@@ -74,7 +74,7 @@
                 <div class="row justify-content-center">
                     <!-- Deposit Button -->
                     <div class="col-md-4 mb-3">
-                        <a href="/deposit" class="btn btn-primary btn-lg btn-block">Deposit</a>
+                        <a href="/deposit" class="btn btn-primary btn-lg btn-block" id="deposit_button">Deposit</a>
                     </div>
 
                     <!-- Withdraw Button -->
