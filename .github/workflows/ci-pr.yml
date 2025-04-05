@@ -11,11 +11,6 @@ jobs:
 
       - name: Install necessary packages
         run: |
-          # This is the experimental version of slim-detect-secrets.
-          # It will be updated to the official Yelp/detect-secrets version once the customized plugins are merged.
-          # For more information about slim/detect-secrets, check the following:
-          # 1. https://github.com/NASA-AMMOS/slim-detect-secrets/tree/exp
-          # 2. https://github.com/NASA-AMMOS/slim/blob/d20ee6134a0dc0e0dab11d2d2570e358ef7e4550/continuous-testing/starter-kits/README.md#detect-secrets
           pip install git+https://github.com/NASA-AMMOS/slim-detect-secrets.git@exp
           # This library is used for JSON operations.
           pip install jq
@@ -23,8 +18,6 @@ jobs:
       - name: Create an initial .secrets.baseline if .secrets.baseline does not exist
         run: |
           if [ ! -f .secrets.baseline ]; then
-            # This generated baseline file will only be temporarily available on the GitHub side and will not appear in the user's local files.
-            # Scanning an empty folder to generate an initial .secrets.baseline without secrets in the results.
             echo "⚠️ No existing .secrets.baseline file detected. Creating a new blank baseline file."
             mkdir empty-dir
             detect-secrets scan empty-dir > .secrets.baseline
@@ -36,40 +29,26 @@ jobs:
 
       - name: Scan repository for secrets
         run: |
-          # scripts to scan repository for new secrets
-          
-          # backup the list of known secrets
           cp .secrets.baseline .secrets.new
+          detect-secrets scan --exclude-files '.secrets.*' --exclude-files '.git*' > results.json
 
-          # find the secrets in the repository
-          detect-secrets scan --baseline .secrets.new --exclude-files '.secrets.*' --exclude-files '.git*' >> secrets.json
-               
-          # if there is any difference between the known and newly detected secrets, break the build
-          # Function to compare secrets without listing them
           compare_secrets() { diff <(jq -r '.results | keys[] as $key | "\($key),\(.[$key] | .[] | .hashed_secret)"' "$1" | sort) <(jq -r '.results | keys[] as $key | "\($key),\(.[$key] | .[] | .hashed_secret)"' "$2" | sort) >/dev/null; }
         
-          # Check if there's any difference between the known and newly detected secrets
-          if ! compare_secrets .secrets.baseline .secrets.new; then
+          if ! compare_secrets .secrets.baseline results.json; then
             echo "⚠️ Attention Required! ⚠️" >&2
             echo "New secrets have been detected in your recent commit. Due to security concerns, we cannot display detailed information here and we cannot proceed until this issue is resolved." >&2
             echo "" >&2
-            echo "Please follow the steps below on your local machine to reveal and handle the secrets:" >&2
+            echo "Please download the results.json file to reveal and handle the secrets:" >&2
             echo "" >&2
-            echo "1️⃣ Run the 'detect-secrets' tool on your local machine. This tool will identify and clean up the secrets. You can find detailed instructions at this link: https://nasa-ammos.github.io/slim/continuous-testing/starter-kits/#detect-secrets" >&2
-            echo "" >&2
-            echo "2️⃣ After cleaning up the secrets, commit your changes and re-push your update to the repository." >&2
-            echo "" >&2
-            echo "Your efforts to maintain the security of our codebase are greatly appreciated!" >&2
             exit 1
           fi
 
-      # 5. Upload secrets report
-      - name: Upload secrets report
-        uses: actions/upload-artifact@v3
+      - name: Upload secrets baseline
+        uses: actions/upload-artifact@v4
+        if: failure()
         with:
-          name: secrets-report
-          path: secrets.json
-
+          name: results
+          path: results.json
   # Análisis Estático con Semgrep
   semgrep:
     # User definable name of this GitHub Actions job.
