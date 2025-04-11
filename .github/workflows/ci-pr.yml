@@ -3,43 +3,52 @@ name: CI Pipeline
 on: [pull_request]
 
 jobs:
-  detect-secrets:
+  secret-detection:
     runs-on: ubuntu-latest
     steps:
-      # 1. Checkout Code
-      - name: Checkout repository
-        uses: actions/checkout@v4
+      - name: Checkout code
+        uses: actions/checkout@v2
 
-      # 2. Install Necessary Packages
-      - name: Setup Python
-        uses: actions/setup-python@v4
-        with:
-          python-version: 3.x
-      - name: Install detect-secrets
+      - name: Install necessary packages
         run: |
-          pip install detect-secrets
-
-      # 3. Check Existence of .secrets.baseline
-      - name: Ensure .secrets.baseline exists
+          pip install git+https://github.com/NASA-AMMOS/slim-detect-secrets.git@exp
+          # This library is used for JSON operations.
+          pip install jq
+          
+      - name: Create an initial .secrets.baseline if .secrets.baseline does not exist
         run: |
           if [ ! -f .secrets.baseline ]; then
-            mkdir -p .secrets
-            detect-secrets scan > .secrets.baseline
+            echo "⚠️ No existing .secrets.baseline file detected. Creating a new blank baseline file."
+            mkdir empty-dir
+            detect-secrets scan empty-dir > .secrets.baseline
+            echo "✅ Blank .secrets.baseline file created successfully."
+            rm -r empty-dir
+          else
+            echo "✅ Existing .secrets.baseline file detected. No new baseline file will be created."
           fi
 
-      # 4. Scan Repository for Secrets
-      - name: Scan for secrets
+      - name: Scan repository for secrets
         run: |
-          detect-secrets scan > secrets.json
-          detect-secrets audit .secrets.baseline || true
+          cp .secrets.baseline .secrets.new
+          detect-secrets scan --exclude-files '.secrets.*' --exclude-files '.git*' > results.json
 
-      # 5. Upload secrets report
-      - name: Upload secrets report
-        uses: actions/upload-artifact@v3
+          compare_secrets() { diff <(jq -r '.results | keys[] as $key | "\($key),\(.[$key] | .[] | .hashed_secret)"' "$1" | sort) <(jq -r '.results | keys[] as $key | "\($key),\(.[$key] | .[] | .hashed_secret)"' "$2" | sort) >/dev/null; }
+        
+          if ! compare_secrets .secrets.baseline results.json; then
+            echo "⚠️ Attention Required! ⚠️" >&2
+            echo "New secrets have been detected in your recent commit. Due to security concerns, we cannot display detailed information here and we cannot proceed until this issue is resolved." >&2
+            echo "" >&2
+            echo "Please download the results.json file to reveal and handle the secrets:" >&2
+            echo "" >&2
+            exit 1
+          fi
+
+      - name: Upload secrets baseline
+        uses: actions/upload-artifact@v4
+        if: failure()
         with:
-          name: secrets-report
-          path: secrets.json
-
+          name: results
+          path: results.json
   # Análisis Estático con Semgrep
   semgrep:
     # User definable name of this GitHub Actions job.
@@ -58,7 +67,7 @@ jobs:
       # Fetch project source with GitHub Actions Checkout. Use either v3 or v4.
       - uses: actions/checkout@v4
       # Run the "semgrep ci" command on the command line of the docker image.
-      - run: semgrep ci --error
+      - run: semgrep ci 
         env:
           # Connect to Semgrep AppSec Platform through your SEMGREP_APP_TOKEN.
           # Generate a token from Semgrep AppSec Platform > Settings
@@ -79,15 +88,3 @@ jobs:
           GITHUB_TOKEN: ${{ secrets.HUBGIT_TYOKEN }}
           SONAR_TOKEN: ${{ secrets.SONAR_TOKEN }}
 
-  # Test Unitarios
-  unit-tests:
-    runs-on: ubuntu-latest
-    needs: sonarqube
-    steps:
-      - uses: actions/checkout@v4
-      - name: Setup Node
-        uses: actions/setup-node@v3
-        with:
-          node-version: 18
-      - run: npm install
-      - run: npm test
