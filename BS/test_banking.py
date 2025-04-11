@@ -45,7 +45,6 @@ driver = webdriver.Chrome()
 
 driver.get("http://127.0.0.1:5000/login") 
 
-driver.find_element(By.ID, "email").send_keys("el.pepe@urosario.edu.co")
 driver.find_element(By.ID, "password").send_keys("elPepe2025#")
 driver.find_element(By.ID, "login").click()
 
