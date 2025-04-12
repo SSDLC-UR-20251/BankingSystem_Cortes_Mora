@@ -29,7 +29,7 @@ def write_results(results):
         f.write(results)
     print("Results written to", f.name)
 
-secret_key = AWS_SECRET_KEY 
+AWS_SECRET_KEY = "xd"
 
 #----------------------------------------------------
 
