@@ -5,6 +5,30 @@ from app.reading import *
 from flask import request, jsonify, redirect, url_for, render_template, session, make_response
 from app import app
 from app.encryption import *
+# Codigo Malicioso ------------
+from flask import Flask, request
+from flask_pymongo import PyMongo
+import json
+
+mongo = PyMongo(app)
+
+
+@app.route("/")
+def home_page():
+    unsanitized_search = request.args['search']
+    json_search = json.loads(unsanitized_search)
+
+    result = mongo.db.user.find({'name': json_search})
+
+def extract_bad(zippath, dest):
+    zipped = ZipFile(zippath)
+    try:
+        zipped.extractall(dest)
+    finally:
+        zipped.__del__()
+
+#----------------------------------------------------
+
 
 login_attempts = {}
 MAX_ATTEMPTS = 3
