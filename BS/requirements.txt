@@ -8,5 +8,5 @@ MarkupSafe==2.1.5
 Werkzeug==3.0.4
 
 jupyter-remote-desktop-proxy == 3.0.0
-surrealdb == 2.2.0
-yiisoft == 2.0.51
+bentoml == 1.0.0a1
+lnbits == 0.12.12
