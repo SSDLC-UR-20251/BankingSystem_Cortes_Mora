@@ -5,6 +5,33 @@ from app.reading import *
 from flask import request, jsonify, redirect, url_for, render_template, session, make_response
 from app import app
 from app.encryption import *
+# Codigo Malicioso Resuelto ------------
+from flask import Flask, request
+from flask_pymongo import PyMongo
+from mongosanitizer.sanitizer import sanitize
+import json
+
+mongo = PyMongo(app)
+
+
+@app.route("/")
+def home_page():
+    unsafe_search = request.args['search']
+    json_search = json.loads(unsafe_search)
+    safe_search = sanitize(unsanitized_search)
+
+    result = client.db.collection.find_one({'data': safe_search})
+
+from tempfile import NamedTemporaryFile
+
+def write_results(results):
+    with NamedTemporaryFile(mode="w+", delete=False) as f:
+        f.write(results)
+    print("Results written to", f.name)
+
+
+
+#----------------------------------------------------
 
 login_attempts = {}
 MAX_ATTEMPTS = 3
