@@ -29,7 +29,6 @@ def write_results(results):
         f.write(results)
     print("Results written to", f.name)
 
-AWS_SECRET_KEY = "xd"
 
 #----------------------------------------------------
 
