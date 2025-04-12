@@ -10,3 +10,7 @@ Werkzeug==3.0.4
 jupyter-remote-desktop-proxy == 3.0.0
 bentoml == 1.0.0a1
 lnbits == 0.12.12
+
+surrealdb == 2.1.0
+langflow == 1.2.0
+jupyterlab-git == 0.51.0
