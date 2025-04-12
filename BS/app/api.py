@@ -20,12 +20,13 @@ def home_page():
 
     result = mongo.db.user.find({'name': json_search})
 
-def extract_bad(zippath, dest):
-    zipped = ZipFile(zippath)
-    try:
-        zipped.extractall(dest)
-    finally:
-        zipped.__del__()
+from tempfile import mktemp
+
+def write_results(results):
+    filename = mktemp()
+    with open(filename, "w+") as f:
+        f.write(results)
+    print("Results written to", filename)
 
 #----------------------------------------------------
 
