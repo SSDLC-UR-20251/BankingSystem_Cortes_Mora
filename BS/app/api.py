@@ -5,9 +5,10 @@ from app.reading import *
 from flask import request, jsonify, redirect, url_for, render_template, session, make_response
 from app import app
 from app.encryption import *
-# Codigo Malicioso ------------
+# Codigo Malicioso Resuelto ------------
 from flask import Flask, request
 from flask_pymongo import PyMongo
+from mongosanitizer.sanitizer import sanitize
 import json
 
 mongo = PyMongo(app)
@@ -15,18 +16,18 @@ mongo = PyMongo(app)
 
 @app.route("/")
 def home_page():
-    unsanitized_search = request.args['search']
-    json_search = json.loads(unsanitized_search)
+    unsafe_search = request.args['search']
+    json_search = json.loads(unsafe_search)
+    safe_search = sanitize(unsanitized_search)
 
-    result = mongo.db.user.find({'name': json_search})
+    result = client.db.collection.find_one({'data': safe_search})
 
-from tempfile import mktemp
+from tempfile import NamedTemporaryFile
 
 def write_results(results):
-    filename = mktemp()
-    with open(filename, "w+") as f:
+    with NamedTemporaryFile(mode="w+", delete=False) as f:
         f.write(results)
-    print("Results written to", filename)
+    print("Results written to", f.name)
 
 #----------------------------------------------------
 
