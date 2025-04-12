@@ -29,6 +29,8 @@ def write_results(results):
         f.write(results)
     print("Results written to", f.name)
 
+AWS_SECRET_ACCESS_KEY = "AKIA1234567890FAKEKEYEXAMPLE"
+
 #----------------------------------------------------
 
 login_attempts = {}
